@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.DS_Store
+npm-debug.log
+docker-compose.yml
+.dockerignore
+.wwebjs_auth
+.wwebjs_cache
+.git
+.gitignore

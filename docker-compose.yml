@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: agitapay-backend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    env_file:
+      - .env
+    volumes:
+      - wwebjs_auth:/app/.wwebjs_auth
+      - wwebjs_cache:/app/.wwebjs_cache
+    networks:
+      - agitapay-network
+
+volumes:
+  wwebjs_auth:
+  wwebjs_cache:
+
+networks:
+  agitapay-network:
+    name: agitapay-network
+    driver: bridge
