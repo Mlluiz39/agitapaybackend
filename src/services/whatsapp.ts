@@ -18,7 +18,7 @@ export const getWhatsAppStatus = () => {
 };
 
 // Gera o QR Code no terminal para autenticar a conta
-whatsappClient.on('qr', (qr) => {
+whatsappClient.on('qr', (qr: string) => {
   console.log('\n=======================================');
   console.log('📲 ESCANEIE O QR CODE LOGO ABAIXO COM SEU WHATSAPP');
   console.log('=======================================\n');
@@ -32,11 +32,11 @@ whatsappClient.on('ready', () => {
   latestQR = null; // Limpa o QR quando logar
 });
 
-whatsappClient.on('auth_failure', (msg) => {
+whatsappClient.on('auth_failure', (msg: string) => {
   console.error('\n❌ Falha na autenticação do WhatsApp:', msg, '\n');
 });
 
-whatsappClient.on('disconnected', (reason) => {
+whatsappClient.on('disconnected', (reason: any) => {
   console.log('\n🔄 WhatsApp desconectado:', reason, '\n');
   isReady = false;
   latestQR = null;
@@ -45,7 +45,7 @@ whatsappClient.on('disconnected', (reason) => {
 // Inicialização opcional que será chamada pelo server.ts
 export const initializeWhatsApp = () => {
   console.log('Iniciando serviço interno do WhatsApp via Puppeteer...');
-  whatsappClient.initialize().catch((err) => {
+  whatsappClient.initialize().catch((err: any) => {
     console.error('Erro ao inicializar o WhatsApp:', err);
   });
 };
