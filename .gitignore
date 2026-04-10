@@ -1,0 +1,54 @@
+# Dependências
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Arquivos de ambiente (NUNCA subir)
+.env
+.env.local
+.env.*.local
+
+# Build / dist
+dist/
+build/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Uploads (documentos dos clientes ⚠️)
+uploads/
+*.pdf
+*.jpg
+*.jpeg
+*.png
+
+# Cache
+.cache/
+.tmp/
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# Supabase (se usar local)
+.supabase/
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# Coverage (testes)
+coverage/
+
+# Docker (se usar depois)
+docker-compose.override.yml
+
+# SQLite (caso use local)
+*.sqlite
+*.db
