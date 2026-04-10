@@ -5,18 +5,18 @@ import { createAuditLog } from "../utils/audit.js";
 import { z } from "zod";
 import dayjs from "dayjs";
 
-const PagarParcelaSchema = z.object({
-  parcela_id: z.string().uuid(),
-  valor_pago: z.number().positive(),
+const PayInstallmentSchema = z.object({
+  installment_id: z.string().uuid(),
+  paid_value: z.number().positive(),
 });
 
-interface PagarParcelaBody {
-  parcela_id: string;
-  valor_pago: number;
+interface PayInstallmentBody {
+  installment_id: string;
+  paid_value: number;
 }
 
-export default async function parcelasRoutes(app: FastifyInstance) {
-  app.get("/parcelas", async (req: FastifyRequest, reply: FastifyReply) => {
+export default async function installmentsRoutes(app: FastifyInstance) {
+  app.get("/installments", async (req: FastifyRequest, reply: FastifyReply) => {
     const { data, error } = await supabase
       .from("parcelas")
       .select("*, clientes(*)");
@@ -35,14 +35,14 @@ export default async function parcelasRoutes(app: FastifyInstance) {
   });
 
   app.get(
-    "/parcelas/:contrato_id",
-    async (req: FastifyRequest<{ Params: { contrato_id: string } }>, reply: FastifyReply) => {
-      const { contrato_id } = req.params;
+    "/installments/:contract_id",
+    async (req: FastifyRequest<{ Params: { contract_id: string } }>, reply: FastifyReply) => {
+      const { contract_id } = req.params;
 
       const { data, error } = await supabase
         .from("parcelas")
         .select("*")
-        .eq("contrato_id", contrato_id);
+        .eq("contrato_id", contract_id);
 
       if (error) {
         return reply.status(500).send({
@@ -59,9 +59,9 @@ export default async function parcelasRoutes(app: FastifyInstance) {
   );
 
   app.post(
-    "/parcelas/pagar",
-    async (req: FastifyRequest<{ Body: PagarParcelaBody }>, reply: FastifyReply) => {
-      const validation = PagarParcelaSchema.safeParse(req.body);
+    "/installments/pay",
+    async (req: FastifyRequest<{ Body: PayInstallmentBody }>, reply: FastifyReply) => {
+      const validation = PayInstallmentSchema.safeParse(req.body);
 
       if (!validation.success) {
         return reply.status(400).send({
@@ -71,18 +71,18 @@ export default async function parcelasRoutes(app: FastifyInstance) {
         });
       }
 
-      const { parcela_id, valor_pago } = validation.data;
+      const { installment_id, paid_value } = validation.data;
 
-      const { data: parcela } = await supabase
+      const { data: installment } = await supabase
         .from("parcelas")
         .select("*")
-        .eq("id", parcela_id)
+        .eq("id", installment_id)
         .single();
 
-      if (!parcela) {
+      if (!installment) {
         return reply.status(404).send({
           success: false,
-          message: "Parcela não encontrada",
+          message: "Installment not found",
         });
       }
 
@@ -91,9 +91,9 @@ export default async function parcelasRoutes(app: FastifyInstance) {
         .update({
           status: "pago",
           data_pagamento: new Date().toISOString(),
-          valor_pago,
+          valor_pago: paid_value,
         })
-        .eq("id", parcela_id);
+        .eq("id", installment_id);
 
       if (updateError) {
         return reply.status(500).send({
@@ -105,89 +105,89 @@ export default async function parcelasRoutes(app: FastifyInstance) {
       await createAuditLog({
         action: "update_parcela",
         entity_type: "parcela",
-        entity_id: parcela_id,
-        details: { valor_pago, status: "pago" },
+        entity_id: installment_id,
+        details: { paid_value, status: "pago" },
       });
 
       return reply.send({
         success: true,
-        message: "Pagamento registrado",
+        message: "Payment recorded",
       });
     }
   );
 
   app.post(
-    "/parcelas/atualizar-atraso",
+    "/installments/update-overdue",
     async (req: FastifyRequest, reply: FastifyReply) => {
-      const hoje = dayjs();
+      const today = dayjs();
 
-      const { data: parcelas } = await supabase
+      const { data: installments } = await supabase
         .from("parcelas")
         .select("*")
         .eq("status", "pendente");
 
-      if (!parcelas || parcelas.length === 0) {
+      if (!installments || installments.length === 0) {
         return reply.send({
           success: true,
-          message: "Nenhuma parcela pendente",
+          message: "No pending installments",
         });
       }
 
-      let atualizadas = 0;
+      let updated = 0;
 
-      for (const p of parcelas) {
-        const vencimento = dayjs(p.data_vencimento);
+      for (const p of installments) {
+        const dueDate = dayjs(p.data_vencimento);
 
-        if (hoje.isAfter(vencimento)) {
-          const diasAtraso = hoje.diff(vencimento, "day");
-          const juros = p.valor * 0.01 * diasAtraso;
+        if (today.isAfter(dueDate)) {
+          const daysLate = today.diff(dueDate, "day");
+          const interest = p.valor * 0.01 * daysLate;
 
           await supabase
             .from("parcelas")
             .update({
               status: "atrasado",
-              valor_atualizado: p.valor + juros,
-              dias_atraso: diasAtraso,
+              valor_atualizado: p.valor + interest,
+              dias_atraso: daysLate,
             })
             .eq("id", p.id);
 
-          atualizadas++;
+          updated++;
         }
       }
 
       return reply.send({
         success: true,
-        message: `${atualizadas} parcelas atualizadas`,
+        message: `${updated} installments updated`,
       });
     }
   );
 
   app.get(
-    "/parcelas/:id/pix",
+    "/installments/:id/pix",
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const { id } = req.params;
 
-      const { data: parcela } = await supabase
+      const { data: installment } = await supabase
         .from("parcelas")
         .select("*")
         .eq("id", id)
         .single();
 
-      if (!parcela) {
+      if (!installment) {
         return reply.status(404).send({
           success: false,
-          message: "Parcela não encontrada",
+          message: "Installment not found",
         });
       }
 
-      const valor = parcela.valor_atualizado || parcela.valor;
+      const value = installment.valor_atualizado || installment.valor;
 
-      const qrCode = await gerarPix(valor);
+      const qrCode = await gerarPix(value);
 
       return reply.send({
         success: true,
         data: {
-          valor,
+          value,
           qrCode,
         },
       });

@@ -5,16 +5,16 @@ import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { setupErrorHandler } from "./middlewares/errorHandler.js";
 import { authenticate } from "./middlewares/auth.js";
-import clientesRoutes from "./routes/clientes.js";
-import contratosRoutes from "./routes/contratos.js";
-import cobrancaRoutes from "./routes/cobranca.js";
-import parcelasRoutes from "./routes/parcelas.js";
+import clientesRoutes from "./routes/customers.js";
+import contratosRoutes from "./routes/contracts.js";
+import cobrancaRoutes from "./routes/collections.js";
+import installmentsRoutes from "./routes/installments.js";
 import authRoutes from "./routes/auth.js";
 import paymentsRoutes from "./routes/payments.js";
 import dashboardRoutes from "./routes/dashboard.js";
-import parcelasApiRoutes from "./routes/parcelasApi.js";
-import alertasRoutes from "./routes/alertas.js";
-import "./cron/alerta.js";
+import installmentsApiRoutes from "./routes/installmentsApi.js";
+import alertsRoutes from "./routes/alerts.js";
+import "./cron/alert.js";
 
 const app = Fastify({
   logger: true,
@@ -42,17 +42,14 @@ async function start() {
 
     await app.register(authRoutes, { prefix: "/api/auth" });
 
-    await app.register(async (instance) => {
-      instance.addHook("onRequest", authenticate);
-      await instance.register(clientesRoutes);
-      await instance.register(contratosRoutes);
-      await instance.register(cobrancaRoutes);
-      await instance.register(parcelasRoutes);
-      await instance.register(paymentsRoutes);
-      await instance.register(dashboardRoutes);
-      await instance.register(parcelasApiRoutes);
-      await instance.register(alertasRoutes);
-    });
+    await app.register(clientesRoutes, { prefix: "" });
+    await app.register(contratosRoutes, { prefix: "" });
+    await app.register(cobrancaRoutes, { prefix: "" });
+    await app.register(installmentsRoutes, { prefix: "" });
+    await app.register(paymentsRoutes, { prefix: "" });
+    await app.register(dashboardRoutes, { prefix: "" });
+    await app.register(installmentsApiRoutes, { prefix: "" });
+    await app.register(alertsRoutes, { prefix: "" });
 
     await app.ready();
 
@@ -60,7 +57,7 @@ async function start() {
     const host = process.env.HOST || "0.0.0.0";
     
     await app.listen({ port, host });
-    console.log("Servidor rodando em http://localhost:" + port);
+    console.log("Server running on http://localhost:" + port);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

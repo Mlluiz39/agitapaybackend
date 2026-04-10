@@ -3,7 +3,7 @@ import "dotenv/config";
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET é obrigatório no .env");
+  throw new Error("JWT_SECRET is required in .env");
 }
 
 export const authConfig = {

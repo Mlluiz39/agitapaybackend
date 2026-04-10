@@ -5,11 +5,11 @@ import { createAuditLog } from "../utils/audit.js";
 import { z } from "zod";
 
 const GeneratePixSchema = z.object({
-  parcela_id: z.string().uuid(),
+  installment_id: z.string().uuid(),
 });
 
 interface GeneratePixBody {
-  parcela_id: string;
+  installment_id: string;
 }
 
 export default async function paymentsRoutes(app: FastifyInstance) {
@@ -26,38 +26,38 @@ export default async function paymentsRoutes(app: FastifyInstance) {
         });
       }
 
-      const { parcela_id } = validation.data;
+      const { installment_id } = validation.data;
 
-      const { data: parcela } = await supabase
+      const { data: installment } = await supabase
         .from("parcelas")
         .select("*, contratos(*)")
-        .eq("id", parcela_id)
+        .eq("id", installment_id)
         .single();
 
-      if (!parcela) {
+      if (!installment) {
         return reply.status(404).send({
           success: false,
-          message: "Parcela não encontrada",
+          message: "Installment not found",
         });
       }
 
-      const valor = parcela.valor_atualizado || parcela.valor;
-      const qrCode = await gerarPix(valor, `Parcela ${parcela.numero}`);
+      const value = installment.valor_atualizado || installment.valor;
+      const qrCode = await gerarPix(value, `Installment ${installment.numero}`);
 
       await createAuditLog({
         action: "generate_pix",
         entity_type: "parcela",
-        entity_id: parcela_id,
-        details: { valor },
+        entity_id: installment_id,
+        details: { value },
       });
 
       return reply.send({
         success: true,
         data: {
-          valor,
+          value,
           qrCode,
-          vencimento: parcela.data_vencimento,
-          numero: parcela.numero,
+          dueDate: installment.data_vencimento,
+          number: installment.numero,
         },
       });
     }
@@ -66,25 +66,25 @@ export default async function paymentsRoutes(app: FastifyInstance) {
   app.post(
     "/api/payments/confirm",
     async (req: FastifyRequest, reply: FastifyReply) => {
-      const { parcela_id, valor_pago } = req.body as { parcela_id: string; valor_pago: number };
+      const { installment_id, paid_value } = req.body as { installment_id: string; paid_value: number };
 
-      if (!parcela_id || !valor_pago) {
+      if (!installment_id || !paid_value) {
         return reply.status(400).send({
           success: false,
-          message: "parcela_id e valor_pago são obrigatórios",
+          message: "installment_id and paid_value are required",
         });
       }
 
-      const { data: parcela } = await supabase
+      const { data: installment } = await supabase
         .from("parcelas")
         .select("*")
-        .eq("id", parcela_id)
+        .eq("id", installment_id)
         .single();
 
-      if (!parcela) {
+      if (!installment) {
         return reply.status(404).send({
           success: false,
-          message: "Parcela não encontrada",
+          message: "Installment not found",
         });
       }
 
@@ -92,10 +92,10 @@ export default async function paymentsRoutes(app: FastifyInstance) {
         .from("parcelas")
         .update({
           status: "pago",
-          valor_pago,
+          valor_pago: paid_value,
           data_pagamento: new Date().toISOString(),
         })
-        .eq("id", parcela_id);
+        .eq("id", installment_id);
 
       if (error) {
         return reply.status(500).send({
@@ -107,13 +107,13 @@ export default async function paymentsRoutes(app: FastifyInstance) {
       await createAuditLog({
         action: "confirm_payment",
         entity_type: "parcela",
-        entity_id: parcela_id,
-        details: { valor_pago },
+        entity_id: installment_id,
+        details: { paid_value },
       });
 
       return reply.send({
         success: true,
-        message: "Pagamento confirmado",
+        message: "Payment confirmed",
       });
     }
   );

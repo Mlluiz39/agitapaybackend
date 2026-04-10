@@ -1,10 +1,10 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { supabase } from "../services/supabase.js";
 import { createAuditLog } from "../utils/audit.js";
-import { ClienteSchema } from "../types/cliente.js";
+import { CustomerSchema } from "../types/customer.js";
 import { JWTPayload } from "../config/auth.js";
 
-interface ClienteBody {
+interface CustomerBody {
   nome: string;
   cpf: string;
   rg?: string;
@@ -13,11 +13,11 @@ interface ClienteBody {
   endereco?: string;
 }
 
-export default async function clientesRoutes(app: FastifyInstance) {
+export default async function customersRoutes(app: FastifyInstance) {
   app.post(
-    "/clientes",
-    async (req: FastifyRequest<{ Body: ClienteBody }>, reply: FastifyReply) => {
-      const validation = ClienteSchema.safeParse(req.body);
+    "/customers",
+    async (req: FastifyRequest<{ Body: CustomerBody }>, reply: FastifyReply) => {
+      const validation = CustomerSchema.safeParse(req.body);
 
       if (!validation.success) {
         return reply.status(400).send({
@@ -65,7 +65,7 @@ export default async function clientesRoutes(app: FastifyInstance) {
     }
   );
 
-  app.get("/clientes", async (req: FastifyRequest, reply: FastifyReply) => {
+  app.get("/customers", async (req: FastifyRequest, reply: FastifyReply) => {
     const { data, error } = await supabase
       .from("clientes")
       .select("*");
@@ -84,7 +84,7 @@ export default async function clientesRoutes(app: FastifyInstance) {
   });
 
   app.get(
-    "/clientes/:id",
+    "/customers/:id",
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const { id } = req.params;
 
@@ -97,7 +97,7 @@ export default async function clientesRoutes(app: FastifyInstance) {
       if (error) {
         return reply.status(404).send({
           success: false,
-          message: "Cliente não encontrado",
+          message: "Customer not found",
         });
       }
 
@@ -110,8 +110,8 @@ export default async function clientesRoutes(app: FastifyInstance) {
 
   app.post(
     "/api/customers",
-    async (req: FastifyRequest<{ Body: ClienteBody }>, reply: FastifyReply) => {
-      const validation = ClienteSchema.safeParse(req.body);
+    async (req: FastifyRequest<{ Body: CustomerBody }>, reply: FastifyReply) => {
+      const validation = CustomerSchema.safeParse(req.body);
 
       if (!validation.success) {
         return reply.status(400).send({

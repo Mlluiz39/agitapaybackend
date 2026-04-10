@@ -1,11 +1,11 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { supabase } from "../services/supabase.js";
-import { gerarParcelas } from "../utils/gerarParcelas.js";
-import { calcularJuros } from "../services/juros.js";
+import { generateInstallments } from "../utils/generateInstallments.js";
+import { calculateInterest } from "../services/fees.js";
 import { createAuditLog } from "../utils/audit.js";
 import { z } from "zod";
 
-const ContratoInputSchema = z.object({
+const ContractInputSchema = z.object({
   cliente_id: z.string().uuid(),
   valor: z.number().positive(),
   taxa: z.number().min(0).max(1),
@@ -13,7 +13,7 @@ const ContratoInputSchema = z.object({
   tipo_juros: z.enum(["simples", "composto"]),
 });
 
-interface ContratoInput {
+interface ContractInput {
   cliente_id: string;
   valor: number;
   taxa: number;
@@ -21,11 +21,11 @@ interface ContratoInput {
   tipo_juros: "simples" | "composto";
 }
 
-export default async function contratosRoutes(app: FastifyInstance) {
+export default async function contractsRoutes(app: FastifyInstance) {
   app.post(
-    "/contratos",
-    async (req: FastifyRequest<{ Body: ContratoInput }>, reply: FastifyReply) => {
-      const validation = ContratoInputSchema.safeParse(req.body);
+    "/contracts",
+    async (req: FastifyRequest<{ Body: ContractInput }>, reply: FastifyReply) => {
+      const validation = ContractInputSchema.safeParse(req.body);
       
       if (!validation.success) {
         return reply.status(400).send({
@@ -46,17 +46,17 @@ export default async function contratosRoutes(app: FastifyInstance) {
       if (!clienteExistente) {
         return reply.status(404).send({
           success: false,
-          message: "Cliente não encontrado",
+          message: "Customer not found",
         });
       }
 
-      const valorTotal = calcularJuros(valor, taxa, parcelas, tipo_juros);
+      const totalValue = calculateInterest(valor, taxa, parcelas, tipo_juros);
 
-      const { data: contrato, error } = await supabase
+      const { data: contract, error } = await supabase
         .from("contratos")
         .insert([{
           cliente_id,
-          valor_total: valorTotal,
+          valor_total: totalValue,
         }])
         .select()
         .single();
@@ -68,39 +68,39 @@ export default async function contratosRoutes(app: FastifyInstance) {
         });
       }
 
-      const listaParcelas = gerarParcelas(valorTotal, parcelas, new Date());
+      const installmentList = generateInstallments(totalValue, parcelas, new Date());
 
-      const parcelasComId = listaParcelas.map((p) => ({
+      const installmentsWithId = installmentList.map((p) => ({
         ...p,
-        contrato_id: contrato.id,
+        contrato_id: contract.id,
       }));
 
       const { error: parcelasError } = await supabase
         .from("parcelas")
-        .insert(parcelasComId);
+        .insert(installmentsWithId);
 
       if (parcelasError) {
         return reply.status(500).send({
           success: false,
-          message: "Erro ao criar parcelas: " + parcelasError.message,
+          message: "Error creating installments: " + parcelasError.message,
         });
       }
 
       await createAuditLog({
         action: "create_contrato",
         entity_type: "contrato",
-        entity_id: contrato.id,
-        details: { cliente_id, valor_total: valorTotal, parcelas },
+        entity_id: contract.id,
+        details: { cliente_id, valor_total: totalValue, parcelas },
       });
 
       return reply.status(201).send({
         success: true,
-        data: { contrato, parcelas: listaParcelas },
+        data: { contract, installments: installmentList },
       });
     }
   );
 
-  app.get("/contratos", async (req: FastifyRequest, reply: FastifyReply) => {
+  app.get("/contracts", async (req: FastifyRequest, reply: FastifyReply) => {
     const { data, error } = await supabase
       .from("contratos")
       .select("*");
@@ -119,7 +119,7 @@ export default async function contratosRoutes(app: FastifyInstance) {
   });
 
   app.get(
-    "/contratos/:id",
+    "/contracts/:id",
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const { id } = req.params;
 
@@ -132,7 +132,7 @@ export default async function contratosRoutes(app: FastifyInstance) {
       if (error) {
         return reply.status(404).send({
           success: false,
-          message: "Contrato não encontrado",
+          message: "Contract not found",
         });
       }
 

@@ -1,8 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { supabase } from "../services/supabase.js";
 
-export default async function parcelasApiRoutes(app: FastifyInstance) {
-  app.get("/api/parcelas", async (req: FastifyRequest, reply: FastifyReply) => {
+export default async function installmentsApiRoutes(app: FastifyInstance) {
+  app.get("/api/installments", async (req: FastifyRequest, reply: FastifyReply) => {
     const { data, error } = await supabase
       .from("parcelas")
       .select("*, contratos(clientes(nome, cpf))")
@@ -15,7 +15,7 @@ export default async function parcelasApiRoutes(app: FastifyInstance) {
     return reply.send({ success: true, data: data || [] });
   });
 
-  app.get("/api/parcelas/:id", async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  app.get("/api/installments/:id", async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { id } = req.params;
     
     const { data, error } = await supabase
@@ -25,21 +25,21 @@ export default async function parcelasApiRoutes(app: FastifyInstance) {
       .single();
 
     if (error) {
-      return reply.status(404).send({ success: false, message: "Parcela não encontrada" });
+      return reply.status(404).send({ success: false, message: "Installment not found" });
     }
 
     return reply.send({ success: true, data });
   });
 
-  app.post("/api/parcelas/:id/pagar", async (req: FastifyRequest<{ Params: { id: string }, Body: { valor_pago: number } }>, reply: FastifyReply) => {
+  app.post("/api/installments/:id/pay", async (req: FastifyRequest<{ Params: { id: string }, Body: { paid_value: number } }>, reply: FastifyReply) => {
     const { id } = req.params;
-    const { valor_pago } = req.body;
+    const { paid_value } = req.body;
 
     const { error } = await supabase
       .from("parcelas")
       .update({
         status: "pago",
-        valor_pago,
+        valor_pago: paid_value,
         data_pagamento: new Date().toISOString(),
       })
       .eq("id", id);
@@ -48,6 +48,6 @@ export default async function parcelasApiRoutes(app: FastifyInstance) {
       return reply.status(500).send({ success: false, message: error.message });
     }
 
-    return reply.send({ success: true, message: "Pagamento registrado" });
+    return reply.send({ success: true, message: "Payment recorded" });
   });
 }

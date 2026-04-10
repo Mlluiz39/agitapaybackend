@@ -7,10 +7,18 @@ declare module "fastify" {
   }
 }
 
+const PUBLIC_ROUTES = ["/health", "/api/auth", "/api/customers", "/api/contracts"];
+
 export async function authenticate(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
+  const path = request.url;
+  
+  if (PUBLIC_ROUTES.some(route => path.startsWith(route))) {
+    return;
+  }
+
   try {
     await request.jwtVerify();
   } catch (err) {

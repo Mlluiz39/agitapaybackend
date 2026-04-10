@@ -27,7 +27,7 @@ export function validarCPF(cpf: string): boolean {
   return true;
 }
 
-export function formatarCPF(cpf: string): string {
+export function formatCPF(cpf: string): string {
   const cleaned = cpf.replace(/\D/g, "");
   return cleaned.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
 }
