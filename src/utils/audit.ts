@@ -11,6 +11,7 @@ export type AuditAction =
   | "create_contrato" 
   | "view_contrato"
   | "delete_contrato"
+  | "quitar_contrato"
   | "create_cobranca"
   | "update_parcela"
   | "generate_pix"

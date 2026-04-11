@@ -134,6 +134,58 @@ const { data: contract, error } = await supabase
     });
   });
 
+  app.post(
+    "/contracts/:id/quitar",
+    async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const { id } = req.params;
+
+      const { data: parcelas } = await supabase
+        .from("parcelas")
+        .select("id, valor, valor_atualizado")
+        .eq("contrato_id", id)
+        .eq("status", "pendente");
+
+      if (!parcelas || parcelas.length === 0) {
+        return reply.send({
+          success: true,
+          message: "No pending installments",
+        });
+      }
+
+      const hoje = new Date().toISOString();
+
+      for (const parcela of parcelas) {
+        const { error } = await supabase
+          .from("parcelas")
+          .update({
+            status: "pago",
+            data_pagamento: hoje,
+            valor_pago: parcela.valor_atualizado || parcela.valor,
+          })
+          .eq("id", parcela.id);
+
+        if (error) {
+          return reply.status(500).send({
+            success: false,
+            message: "Error marking installments as paid: " + error.message,
+          });
+        }
+      }
+
+      await createAuditLog({
+        action: "quitar_contrato",
+        entity_type: "contrato",
+        entity_id: id,
+        details: { installments_paid: parcelas.length },
+      });
+
+      return reply.send({
+        success: true,
+        message: `${parcelas.length} installments marked as paid`,
+      });
+    }
+  );
+
   app.get(
     "/contracts/:id",
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
