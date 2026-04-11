@@ -74,3 +74,39 @@ CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 -- ALTER TABLE contratos ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE parcelas ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
+-- Supabase Storage: Bucket para documentos
+-- Execute no SQL Editor do Supabase Dashboard
+-- ============================================
+
+-- Criar bucket para documentos de clientes
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'documentos-clientes',
+  'documentos-clientes',
+  true,
+  5242880, -- 5MB
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Política para permitir uploads (anon/public)
+CREATE POLICY "Allow anon uploads" ON storage.objects
+  FOR INSERT TO anon, authenticated, public
+  WITH CHECK (bucket_id = 'documentos-clientes');
+
+-- Política para leitura pública
+CREATE POLICY "Allow public read" ON storage.objects
+  FOR SELECT TO anon, authenticated, public
+  USING (bucket_id = 'documentos-clientes');
+
+-- Política para deletar (anon/public)
+CREATE POLICY "Allow anon deletes" ON storage.objects
+  FOR DELETE TO anon, authenticated, public
+  USING (bucket_id = 'documentos-clientes');
+
+-- Política para update (anon/public)
+CREATE POLICY "Allow anon updates" ON storage.objects
+  FOR UPDATE TO anon, authenticated, public
+  USING (bucket_id = 'documentos-clientes');

@@ -42,6 +42,8 @@ uploads/
 # Arquivos temporários
 *.tmp
 *.temp
+.wwebjs_auth/
+.wwebjs_cache/
 
 # Coverage (testes)
 coverage/

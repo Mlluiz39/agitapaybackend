@@ -3,6 +3,7 @@ import "dotenv/config";
 import jwt from "@fastify/jwt";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
+import multipart from "@fastify/multipart";
 import { setupErrorHandler } from "./middlewares/errorHandler.js";
 import { authenticate } from "./middlewares/auth.js";
 import clientesRoutes from "./routes/customers.js";
@@ -14,6 +15,8 @@ import paymentsRoutes from "./routes/payments.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import installmentsApiRoutes from "./routes/installmentsApi.js";
 import alertsRoutes from "./routes/alerts.js";
+import uploadsRoutes from "./routes/uploads.js";
+import { initializeWhatsApp } from "./services/whatsapp.js";
 import "./cron/alert.js";
 
 const app = Fastify({
@@ -30,6 +33,13 @@ async function start() {
     await app.register(rateLimit, {
       max: 100,
       timeWindow: "1 minute",
+    });
+
+    await app.register(multipart, {
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+        files: 1,
+      },
     });
 
     await app.register(jwt, {
@@ -50,6 +60,7 @@ async function start() {
     await app.register(dashboardRoutes, { prefix: "" });
     await app.register(installmentsApiRoutes, { prefix: "" });
     await app.register(alertsRoutes, { prefix: "" });
+    await app.register(uploadsRoutes, { prefix: "" });
 
     await app.ready();
 
@@ -58,6 +69,10 @@ async function start() {
     
     await app.listen({ port, host });
     console.log("Server running on http://localhost:" + port);
+
+    // Iniciar Whatsapp Client local
+    initializeWhatsApp();
+
   } catch (err) {
     app.log.error(err);
     process.exit(1);

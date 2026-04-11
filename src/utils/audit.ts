@@ -6,6 +6,8 @@ export type AuditAction =
   | "create_cliente" 
   | "update_cliente" 
   | "delete_cliente"
+  | "upload_documento"
+  | "delete_documento"
   | "create_contrato" 
   | "view_contrato"
   | "create_cobranca"

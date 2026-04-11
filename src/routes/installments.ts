@@ -19,7 +19,7 @@ export default async function installmentsRoutes(app: FastifyInstance) {
   app.get("/installments", async (req: FastifyRequest, reply: FastifyReply) => {
     const { data, error } = await supabase
       .from("parcelas")
-      .select("*, clientes(*)");
+      .select("*, contratos(clientes(*))");
 
     if (error) {
       return reply.status(500).send({
@@ -113,6 +113,80 @@ export default async function installmentsRoutes(app: FastifyInstance) {
         success: true,
         message: "Payment recorded",
       });
+    }
+  );
+
+  app.post(
+    "/installments/:id/notify",
+    async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const { id } = req.params;
+
+      const { data: installment } = await supabase
+        .from("parcelas")
+        .select("*, contratos(clientes(nome, telefone, email))")
+        .eq("id", id)
+        .single() as any;
+
+      if (!installment) {
+        return reply.status(404).send({ success: false, message: "Parcela não encontrada" });
+      }
+
+      const telefone = installment.contratos?.clientes?.telefone;
+      if (!telefone) {
+        return reply.status(400).send({ success: false, message: "Cliente não possui telefone cadastrado" });
+      }
+
+      const { cobrar } = await import("../services/whatsapp.js");
+      const { sendEmail, buildAgitaPayEmailTemplate } = await import("../services/email.js");
+      
+      const nome = installment.contratos.clientes.nome.split(" ")[0];
+      const today = dayjs().startOf("day");
+      const venc = dayjs(installment.data_vencimento).startOf("day");
+      const diasDiferenca = venc.diff(today, "day"); // se for futuro = positivo
+      
+      let msgWpp = "";
+      if (today.isBefore(venc)) {
+         msgWpp = `Olá ${nome}, aqui é da AgitaPay ! lembrete amigável: Sua parcela no valor de R$ ${installment.valor.toFixed(2).replace('.', ',')} vence no dia ${venc.format("DD/MM/YYYY")}`;
+      } else if (today.isSame(venc)) {
+         msgWpp = `Olá ${nome}, aqui é da AgitaPay ! lembrete amigável: Sua parcela no valor de R$ ${installment.valor.toFixed(2).replace('.', ',')} vence *hoje* (${venc.format("DD/MM/YYYY")})`;
+      } else {
+         const valorExibir = installment.valor_atualizado || installment.valor;
+         msgWpp = `Olá ${nome}, aqui é da AgitaPay ! lembrete amigável: Sua parcela no valor de R$ ${valorExibir.toFixed(2).replace('.', ',')} venceu no dia ${venc.format("DD/MM/YYYY")}`;
+      }
+
+      try {
+        // Disparo de Teste do WhatsApp
+        await cobrar(telefone, msgWpp);
+        
+        // Disparo de Teste do E-mail
+        const email = installment.contratos?.clientes?.email;
+        let emailSentStatus = false;
+        let emailErrorMsg = "Cliente não possui e-mail cadastrado ou e-mail inválido.";
+
+        if (email && email.includes('@')) {
+           const valorExibirEmail = (today.isAfter(venc) && installment.valor_atualizado) ? installment.valor_atualizado : installment.valor;
+           // Ajustando a diferenca pra ficar compativel com o template (qts dias faltam) -> invertendo
+           const fakeDiasDiferencaEmail = today.isSame(venc) ? 0 : today.isBefore(venc) ? venc.diff(today, "day") : -1;
+           
+           const html = buildAgitaPayEmailTemplate(nome, fakeDiasDiferencaEmail, valorExibirEmail, venc.format("DD/MM/YYYY"));
+           const subject = today.isSame(venc) ? "Sua fatura da AgitaPay vence HOJE. ✨" : "Atualizações sobre sua fatura AgitaPay";
+           
+           const result = await sendEmail(email, subject, html);
+           emailSentStatus = result.success;
+           if (!result.success) {
+             emailErrorMsg = result.message;
+           }
+        }
+
+        return reply.send({ 
+          success: true, 
+          message: emailSentStatus 
+            ? "Notificação de WhatsApp E E-mail enviadas com sucesso!" 
+            : `WhatsApp enviado. E-mail falhou: ${emailErrorMsg}`
+        });
+      } catch (err: any) {
+        return reply.status(500).send({ success: false, message: err.message });
+      }
     }
   );
 
