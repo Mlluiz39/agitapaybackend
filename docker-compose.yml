@@ -6,7 +6,7 @@ services:
     container_name: agitapay-backend
     restart: unless-stopped
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "${PORT:-8880}:${PORT:-8880}"
     env_file:
       - .env
     volumes:

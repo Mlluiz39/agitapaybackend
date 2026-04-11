@@ -65,7 +65,7 @@ async function start() {
     await app.register(whatsappRoutes, { prefix: "" });
     await app.ready();
 
-    const port = parseInt(process.env.PORT || "3000", 10);
+    const port = parseInt(process.env.PORT || "8880", 10);
     const host = process.env.HOST || "0.0.0.0";
     
     await app.listen({ port, host });
