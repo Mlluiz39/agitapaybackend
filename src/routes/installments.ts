@@ -117,6 +117,50 @@ export default async function installmentsRoutes(app: FastifyInstance) {
   );
 
   app.post(
+    "/installments/:id/pay-interest",
+    async (req: FastifyRequest<{ Params: { id: string }, Body: { interest_paid: number } }>, reply: FastifyReply) => {
+      const { id } = req.params;
+      const { interest_paid } = req.body;
+
+      if (!interest_paid || interest_paid <= 0) {
+         return reply.status(400).send({ success: false, message: "Valor inválido" });
+      }
+
+      const { data: installment } = await supabase
+        .from("parcelas")
+        .select("*")
+        .eq("id", id)
+        .single();
+      
+      if (!installment) {
+        return reply.status(404).send({ success: false, message: "Installment not found" });
+      }
+
+      const newJurosPagos = (installment.juros_pagos || 0) + interest_paid;
+
+      const { error: updateError } = await supabase
+        .from("parcelas")
+        .update({
+          juros_pagos: newJurosPagos,
+        })
+        .eq("id", id);
+      
+      if (updateError) {
+        return reply.status(500).send({ success: false, message: updateError.message });
+      }
+
+      await createAuditLog({
+        action: "update_parcela_interest",
+        entity_type: "parcela",
+        entity_id: id,
+        details: { interest_paid, total_juros_pagos: newJurosPagos, status: installment.status },
+      });
+
+      return reply.send({ success: true, message: "Interest payment recorded successfully", juros_pagos: newJurosPagos });
+    }
+  );
+
+  app.post(
     "/installments/:id/notify",
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const { id } = req.params;

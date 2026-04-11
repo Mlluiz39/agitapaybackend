@@ -14,6 +14,7 @@ export type AuditAction =
   | "quitar_contrato"
   | "create_cobranca"
   | "update_parcela"
+  | "update_parcela_interest"
   | "generate_pix"
   | "confirm_payment";
 
