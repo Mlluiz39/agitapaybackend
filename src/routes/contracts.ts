@@ -52,14 +52,15 @@ export default async function contractsRoutes(app: FastifyInstance) {
 
       const totalValue = calculateInterest(valor, taxa, parcelas, tipo_juros);
 
-      const { data: contract, error } = await supabase
-        .from("contratos")
-        .insert([{
-          cliente_id,
-          valor_total: totalValue,
-        }])
-        .select()
-        .single();
+const { data: contract, error } = await supabase
+      .from("contratos")
+      .insert([{
+        cliente_id,
+        valor_total: totalValue,
+        parcelas: parcelas,
+      }])
+      .select()
+      .single();
 
       if (error) {
         return reply.status(500).send({
@@ -101,7 +102,7 @@ export default async function contractsRoutes(app: FastifyInstance) {
   );
 
   app.get("/contracts", async (req: FastifyRequest, reply: FastifyReply) => {
-    const { data, error } = await supabase
+    const { data: contratos, error } = await supabase
       .from("contratos")
       .select("*");
 
@@ -112,9 +113,24 @@ export default async function contractsRoutes(app: FastifyInstance) {
       });
     }
 
+    if (!contratos || contratos.length === 0) {
+      return reply.send({ success: true, data: [] });
+    }
+
+    const clienteIds = contratos.map(c => c.cliente_id);
+    const { data: clientes } = await supabase
+      .from("clientes")
+      .select("*")
+      .in("id", clienteIds);
+
+    const contratosComCliente = contratos.map(contrato => ({
+      ...contrato,
+      clientes: clientes?.find(c => c.id === contrato.cliente_id)
+    }));
+
     return reply.send({
       success: true,
-      data,
+      data: contratosComCliente,
     });
   });
 
@@ -123,22 +139,70 @@ export default async function contractsRoutes(app: FastifyInstance) {
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const { id } = req.params;
 
-      const { data, error } = await supabase
+      const { data: contrato, error } = await supabase
         .from("contratos")
         .select("*")
         .eq("id", id)
         .single();
 
-      if (error) {
+      if (error || !contrato) {
         return reply.status(404).send({
           success: false,
           message: "Contract not found",
         });
       }
 
+      const { data: cliente } = await supabase
+        .from("clientes")
+        .select("*")
+        .eq("id", contrato.cliente_id)
+        .single();
+
       return reply.send({
         success: true,
-        data,
+        data: { ...contrato, clientes: cliente },
+      });
+    }
+  );
+
+  app.delete(
+    "/contracts/:id",
+    async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const { id } = req.params;
+
+      const { error: parcelasError } = await supabase
+        .from("parcelas")
+        .delete()
+        .eq("contrato_id", id);
+
+      if (parcelasError) {
+        return reply.status(500).send({
+          success: false,
+          message: "Error deleting installments: " + parcelasError.message,
+        });
+      }
+
+      const { error } = await supabase
+        .from("contratos")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        return reply.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      await createAuditLog({
+        action: "delete_contrato",
+        entity_type: "contrato",
+        entity_id: id,
+      });
+
+      return reply.send({
+        success: true,
+        message: "Contract deleted",
       });
     }
   );
