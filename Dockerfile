@@ -3,9 +3,10 @@ FROM node:20-bookworm-slim
 # Instalação das dependências necessárias para rodar o Puppeteer (Chromium) internamente no contêiner
 RUN apt-get update && apt-get install -y \
     chromium \
-    fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
-    --no-install-recommends \
+    fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf \
+    libxss1 libnss3 libgbm1 libasound2 \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Informa ao Puppeteer para não realizar o download do Chromium e usar o binário do sistema
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
