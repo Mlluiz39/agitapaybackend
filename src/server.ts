@@ -16,6 +16,7 @@ import dashboardRoutes from "./routes/dashboard.js";
 import installmentsApiRoutes from "./routes/installmentsApi.js";
 import alertsRoutes from "./routes/alerts.js";
 import uploadsRoutes from "./routes/uploads.js";
+import whatsappRoutes from "./routes/whatsapp.js";
 import { initializeWhatsApp } from "./services/whatsapp.js";
 import "./cron/alert.js";
 
@@ -61,6 +62,7 @@ async function start() {
     await app.register(installmentsApiRoutes, { prefix: "" });
     await app.register(alertsRoutes, { prefix: "" });
     await app.register(uploadsRoutes, { prefix: "" });
+    await app.register(whatsappRoutes, { prefix: "" });
 
     await app.ready();
 

@@ -11,6 +11,11 @@ export const whatsappClient = new Client({
 });
 
 let isReady = false;
+let latestQR: string | null = null;
+
+export const getWhatsAppStatus = () => {
+  return { connected: isReady, qrCode: latestQR };
+};
 
 // Gera o QR Code no terminal para autenticar a conta
 whatsappClient.on('qr', (qr) => {
@@ -18,11 +23,13 @@ whatsappClient.on('qr', (qr) => {
   console.log('📲 ESCANEIE O QR CODE LOGO ABAIXO COM SEU WHATSAPP');
   console.log('=======================================\n');
   qrcode.generate(qr, { small: true });
+  latestQR = qr; // Salva o QR em string plana para a API
 });
 
 whatsappClient.on('ready', () => {
   console.log('\n✅ Conexão com o WhatsApp estabelecida com sucesso!\n');
   isReady = true;
+  latestQR = null; // Limpa o QR quando logar
 });
 
 whatsappClient.on('auth_failure', (msg) => {
@@ -32,6 +39,7 @@ whatsappClient.on('auth_failure', (msg) => {
 whatsappClient.on('disconnected', (reason) => {
   console.log('\n🔄 WhatsApp desconectado:', reason, '\n');
   isReady = false;
+  latestQR = null;
 });
 
 // Inicialização opcional que será chamada pelo server.ts
@@ -83,4 +91,4 @@ export const cobrar = async (to: string, message: string): Promise<void> => {
     console.error(`❌ Erro ao enviar WhatsApp para ${finalNumberId || cleanNumber}:`, error);
     throw error;
   }
-};
+};
